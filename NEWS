@@ -1,0 +1,54 @@
+Changes between 3.2.0 and 4.0.0
+===============================
+Module Changes (for users):
+* The following modules have been moved to the willie-extras repository:
+  * ai
+  * bucket
+  * fuckingweather
+  * nws
+  * roulette
+  * twit
+  * slap
+  * oblique
+* The information of the last URL seen in a channel can now be replayed with .title
+* The YouTube module was reworked to use the YouTube JSON api
+* The IP module is no independent of 3rd party services, and requires a local copy of the (free) GeoLite database. If such database is not installed, Willie will download it automatically.
+* .commands now gives better output (no more truncated output due to message length limit)
+* Added a unit conversion module
+* Better handling for non-unicode page titles in the URL titler
+* Removed bing support from search
+* Various minor improvements and bugfixes across all modules
+
+
+Core Changes (for users):
+* Module discovery was reworked. Willie will now try to load additional modules from ~/.willie/modules by default, if installed
+* The home directory, usually ~/.willie, can now be configured by adding homedir under [core]
+* The location of pid files can now be configured by adding pid_dir under [core]
+* Willie can now be run as a systemd service
+* Case sensitivity in nick blocking is fixed
+* Better handling of ping timeouts (connection problems)
+* Major code cleanup
+
+API Changes (for developers):
+* Improved Unicode UTF-8 support across all codepaths.
+* Triggers, and the appropriate attributes thereof, are now unicode objects.
+* Decorators were introduced for setting attributes on callables, available in willie.module
+* the NOLIMIT return value was moved from the Willie class to willie.module
+* Callables with the same name in different modules no longer override each other
+* willie.channels is now properly maintained
+* trigger.isvoice can now be used to determine if a user has voice privileges
+* Added the max_messages parameter for willie.msg() and willie.say(). See documentation for details.
+* Added interval callable support (see documentation for details).
+* Numerous minor features, and stability and usability fixes
+
+Changes between 3.1.2 and 3.2.0
+===============================
+* tools.Nick class added for RFC-compliant nickname comparison and storage
+* Returning willie.NOLIMIT from a callable ignores the rate limit for that call
+* get_list() added to ConfigSection. Will reliably return a list from a config attribute.
+* A number of bugs regarding admin and operator lists were fixed
+* Unusual mode changes no longer cause errors
+* Times shown by .t, .in, etc. all now use formats set by .settimeformat
+* sed feature can use backslashed slashes in substitutions
+* Weather module was rewritten, and now uses Yahoo! Weather
+* Numerous stability and usability fixes
