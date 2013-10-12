@@ -79,7 +79,13 @@ def main(argv=None):
             dest='mod_wizard', help='Run the configuration wizard, but only for the module configuration options.')
         parser.add_option('--configure-database', action='store_true',
             dest='db_wizard', help='Run the configuration wizard, but only for the database configuration options.')
+	parser.add_option('-p', '--password', action='store', type='string', dest='pwd', help='password to Q auth')
         opts, args = parser.parse_args(argv)
+
+        if opts.pwd:
+            fpwd = open('temp_pwd', 'w')
+            fpwd.write(opts.pwd)
+            fpwd.close()
 
         if opts.wizard:
             wizard('all', opts.config)

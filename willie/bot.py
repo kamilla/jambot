@@ -248,6 +248,7 @@ class Willie(irc.Bot):
 
     def setup(self):
         stderr("\nWelcome to Willie. Loading modules...\n\n")
+
         self.callables = set()
 
         filenames = self.config.enumerate_modules()
