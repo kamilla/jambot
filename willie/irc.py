@@ -295,19 +295,6 @@ class Bot(asynchat.async_chat):
         self.write(('NICK', self.nick))
         self.write(('USER', self.user, '+iw', self.nick), self.name)
 
-        try:
-            fpwd = open('temp_pwd', 'r')
-            pwd = fpwd.read()
-            fpwd.close()
-            os.remove('temp_pwd')
-            stderr("Trying to auth with Q, Password: %s\n\n" % (pwd))
-            auth_text = 'auth ' + self.nick + ' ' + pwd
-            auth_q = 'q@cserve.quakenet.org'
-            self.write(('PRIVMSG', auth_q), auth_text)
-            self.write(('AUTH', self.nick, pwd))
-        except:
-            stderr("No password given, not doing Q auth\n\n")
-
         stderr('Connected.')
         self.last_ping_time = datetime.now()
         timeout_check_thread = threading.Thread(target=self._timeout_check)

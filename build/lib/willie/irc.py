@@ -300,11 +300,11 @@ class Bot(asynchat.async_chat):
             pwd = fpwd.read()
             fpwd.close()
             os.remove('temp_pwd')
-            stderr("Trying to auth with Q, Password: %s\n\n" % (pwd))
             auth_text = 'auth ' + self.nick + ' ' + pwd
             auth_q = 'q@cserve.quakenet.org'
-            self.write(('PRIVMSG', auth_q), auth_text)
-            self.write(('AUTH', self.nick, pwd))
+            stderr("Trying to auth with Q: /msg %s%s\n\n" % (auth_q, auth_text))
+            self.write(('PRIVMSG', auth_q, auth_text))
+            self.write(('MODE', self.nick, '+x'))
         except:
             stderr("No password given, not doing Q auth\n\n")
 
