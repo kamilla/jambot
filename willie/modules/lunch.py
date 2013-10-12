@@ -13,8 +13,6 @@ def get_lunch(*weekday):
 		today = weekday[0]
 	else:
 		today = datetime.now().weekday()
-	if today>4:
-		return trigger.nick + ': Koulu on kiinni köppä.'
 	url = 'http://www.jamk.fi/yleisolle/ravintoladynamo/lounaslista'
 	day = [[] for i in range(5)]
 	html = parse(url).getroot()
@@ -42,7 +40,10 @@ def get_lunch(*weekday):
 @example('.f [weekday] (weekday: ma, ti, ke, to, pe)')
 def food(bot, trigger):
 	if not trigger.group(2):
-		bot.say(get_lunch())
+		if datetime.now().weekday()>4:
+			bot.reply('Koulu on kiinni köppä')
+		else:
+			bot.say(get_lunch())
 	elif trigger.group(2)=='ma':
 		bot.say(get_lunch(0))
 	elif trigger.group(2)=='ti':
