@@ -11,6 +11,8 @@ from willie.module import commands, example
 def get_lunch(*weekday):
 	if len(weekday)>0:
 		today = weekday[0]
+		if today>4:
+			return trigger.nick + ': Koulu on kiinni köppä.'
 	else:
 		today = datetime.now().weekday()
 	url = 'http://www.jamk.fi/yleisolle/ravintoladynamo/lounaslista'
