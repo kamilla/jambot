@@ -87,7 +87,7 @@ def gtranslate(bot, trigger):
 		except:
 			bot.reply('You fail hard, go away.')
 	else:
-		bot.reply('Unable to translate between same language (%s to %s), try again, retard.' % (il_en, ol_en))
+		bot.reply('Unable to translate between same language (%s to %s), try again, retard.' % (il, ol))
 
 @example('.lang Bengali')
 @commands('lang', 'l')
