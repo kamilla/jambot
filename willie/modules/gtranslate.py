@@ -62,8 +62,12 @@ def translate(text, il='auto', ol='en'):
 @example('.gt en fi Sentence to be translated')
 @commands('gtranslate', 'gt')
 def gtranslate(bot, trigger):
-	"""Translates a phrase to preferred language, see .lang list for available prefixes"""
-	command = trigger.group(2).encode('utf-8')
+	"""Translates a phrase to preferred language, see '.lang list' for available prefixes"""
+	command = trigger.group(2)
+	if command is None:
+		bot.reply('Nothing to traslate, try adding phrase after the command')
+		return
+	command = command.encode('utf-8')
 	args = ['auto', 'en']
 	for i in range(2):
 	    if not ' ' in command:
