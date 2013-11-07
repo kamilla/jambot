@@ -19,21 +19,21 @@ def get_lunch(*weekday):
 	inner = html.xpath('//*[@id="middleinner"]/div[2]')
 	phase = -1
 	for b in inner:
-		for a in b.cssselect('b'):
-			if a.text_content().startswith('Maanantai'):
+		for a in b.cssselect('p'):
+			if a.text_content().strip().startswith('Maanantai'):
 				phase = 0
-			if a.text_content().startswith('Tiistai'):
+			if a.text_content().strip().startswith('Tiistai'):
 				phase = 1
-			if a.text_content().startswith('Keskiviikko'):
+			if a.text_content().strip().startswith('Keskiviikko'):
 				phase = 2
-			if a.text_content().startswith('Torstai'):
+			if a.text_content().strip().startswith('Torstai'):
 				phase = 3
-			if a.text_content().startswith('Perjantai'):
+			if a.text_content().strip().startswith('Perjantai'):
 				phase = 4
-			if a.text_content().startswith('Monday'):
+			if a.text_content().strip().startswith('Monday'):
 				phase = -1
 			if phase>=0:
-				day[phase].append(a.text_content())
+				day[phase].append(a.text_content().strip())
 	return '[LOUNAS] ' + ', '.join(day[today][:])
 
 @commands('f','food')
