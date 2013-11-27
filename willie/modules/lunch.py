@@ -13,10 +13,10 @@ def get_lunch(*weekday):
 		today = weekday[0]
 	else:
 		today = datetime.now().weekday()
-	url = 'http://www.jamk.fi/yleisolle/ravintoladynamo/lounaslista'
+	url = 'http://www.jamk.fi/fi/Palvelut/Tilavuokraus-ja-ravintolapalvelut/Ravintolapalvelut/Ravintola-Dynamo-lounaslista/'
 	day = [[] for i in range(5)]
 	html = parse(url).getroot()
-	inner = html.xpath('//*[@id="middleinner"]/div[2]')
+	inner = html.xpath('//*[@id="Content_Content_ctl00_mainbodypanel"]/div/div')
 	phase = -1
 	for b in inner:
 		for a in b.cssselect('p'):

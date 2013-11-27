@@ -13,27 +13,27 @@ def get_lunch(*weekday):
 		today = weekday[0]
 	else:
 		today = datetime.now().weekday()
-	url = 'http://www.jamk.fi/yleisolle/ravintoladynamo/lounaslista'
+	url = 'http://www.jamk.fi/fi/Palvelut/Tilavuokraus-ja-ravintolapalvelut/Ravintolapalvelut/Ravintola-Dynamo-lounaslista/'
 	day = [[] for i in range(5)]
 	html = parse(url).getroot()
-	inner = html.xpath('//*[@id="middleinner"]/div[2]')
+	inner = html.xpath('//*[@id="Content_Content_ctl00_mainbodypanel"]/div/div')
 	phase = -1
 	for b in inner:
-		for a in b.cssselect('b'):
-			if a.text_content().startswith('Maanantai'):
+		for a in b.cssselect('p'):
+			if a.text_content().strip().startswith('Maanantai'):
 				phase = 0
-			if a.text_content().startswith('Tiistai'):
+			if a.text_content().strip().startswith('Tiistai'):
 				phase = 1
-			if a.text_content().startswith('Keskiviikko'):
+			if a.text_content().strip().startswith('Keskiviikko'):
 				phase = 2
-			if a.text_content().startswith('Torstai'):
+			if a.text_content().strip().startswith('Torstai'):
 				phase = 3
-			if a.text_content().startswith('Perjantai'):
+			if a.text_content().strip().startswith('Perjantai'):
 				phase = 4
-			if a.text_content().startswith('Monday'):
+			if a.text_content().strip().startswith('Monday'):
 				phase = -1
 			if phase>=0:
-				day[phase].append(a.text_content())
+				day[phase].append(a.text_content().strip())
 	return '[LOUNAS] ' + ', '.join(day[today][:])
 
 @commands('f','food')
