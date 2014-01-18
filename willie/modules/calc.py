@@ -10,7 +10,8 @@ http://willie.dfbta.net
 import re
 from willie import web
 from willie.module import commands, example
-from willie.tools import eval_equation
+#from willie.tools import eval_equation
+import willie.tools
 from socket import timeout
 import string
 import HTMLParser
