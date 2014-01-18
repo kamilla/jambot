@@ -18,7 +18,7 @@ r_entity = re.compile(r'&[A-Za-z0-9#]+;')
 exclusion_char = '!'
 # These are used to clean up the title tag before actually parsing it. Not the
 # world's best way to do this, but it'll do for now.
-title_tag_data = re.compile('<(/?)title( [^>]+)?>', re.IGNORECASE)
+title_tag_data = re.compile('<(/?)title\s*( [^>]+)?>', re.IGNORECASE)
 quoted_title = re.compile('[\'"]<title>[\'"]', re.IGNORECASE)
 # This is another regex that presumably does something important.
 re_dcc = re.compile(r'(?i)dcc\ssend')
@@ -217,7 +217,9 @@ def find_title(url):
     if start == -1 or end == -1:
         return
     title = content[start + 7:end]
+    print title
     title = title.strip()[:200]
+    print title
 
     def get_unicode_entity(match):
         entity = match.group()
