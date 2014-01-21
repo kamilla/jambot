@@ -217,9 +217,7 @@ def find_title(url):
     if start == -1 or end == -1:
         return
     title = content[start + 7:end]
-    print title
     title = title.strip()[:200]
-    print title
 
     def get_unicode_entity(match):
         entity = match.group()
