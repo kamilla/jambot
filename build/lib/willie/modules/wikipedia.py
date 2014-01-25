@@ -53,13 +53,13 @@ def wikipedia(bot, trigger):
     if not query:
         bot.reply('No mitä sä yrität etsiä? En minä osaa ajatuksia lukea. (esim. .w ajatus)')
         return NOLIMIT
-    server = 'fi.wikipedia.org'
+    server = 'en.wikipedia.org'
     result = mw_search(server, query, 1)
     if not result:
-        server = 'en.wikipedia.org'
+        server = 'fi.wikipedia.org'
         result = mw_search(server, query, 1)
     if not result:
-        bot.reply('Olen pahoillani, mutta hakusi: "%s" ei tuota yhtään tulosta, ei suomeksi, eikä englanniksi.' % (query))
+        bot.reply('Olen pahoillani, mutta hakusi: "%s" ei tuota yhtään tulosta, ei suomeksi, eikä englanniksi.' % (query.encode('utf-8')))
         return NOLIMIT
     else:
         result = result[0]
