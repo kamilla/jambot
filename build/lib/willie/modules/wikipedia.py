@@ -32,9 +32,9 @@ def mw_snippet(server, query):
     Retrives a snippet of the specified length from the given page on the given
     server.
     """
-    snippet_url = ('https://en.wikipedia.org/w/api.php?format=json'
+    snippet_url = ('https://%s/w/api.php?format=json'
                    '&action=query&prop=extracts&exintro&explaintext'
-                   '&exchars=300&redirects&titles=')
+                   '&exchars=300&redirects&titles=') % (server)
     snippet_url += web.quote(query.encode('utf-8'))
     snippet = json.loads(web.get(snippet_url))
     snippet = snippet['query']['pages']
@@ -51,16 +51,19 @@ def mw_snippet(server, query):
 def wikipedia(bot, trigger):
     query = trigger.group(2)
     if not query:
-        bot.reply('What do you want me to look up?')
+        bot.reply('No mitä sä yrität etsiä? En minä osaa ajatuksia lukea. (esim. .w ajatus)')
         return NOLIMIT
-    server = 'en.wikipedia.org'
-    query = mw_search(server, query, 1)
-    if not query:
-        bot.reply("I can't find any results for that.")
+    server = 'fi.wikipedia.org'
+    result = mw_search(server, query, 1)
+    if not result:
+        server = 'en.wikipedia.org'
+        result = mw_search(server, query, 1)
+    if not result:
+        bot.reply('Olen pahoillani, mutta hakusi: "%s" ei tuota yhtään tulosta, ei suomeksi, eikä englanniksi.' % (query))
         return NOLIMIT
     else:
-        query = query[0]
-    snippet = mw_snippet(server, query)
+        result = result[0]
+    snippet = mw_snippet(server, result)
 
-    query = query.replace(' ', '_')
-    bot.say('"%s" - http://en.wikipedia.org/wiki/%s' % (snippet, query))
+    result = result.replace(' ', '_')
+    bot.say('"%s" - http://%s/wiki/%s' % (snippet, server, result))
