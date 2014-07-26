@@ -1,8 +1,8 @@
-# -*- coding: utf8 -*-
+#coding: utf8
 """
 youtube.py - Willie YouTube Module
 Copyright 2012, Dimitri Molenaars, Tyrope.nl.
-Copyright © 2012-2013, Elad Alfassa, <elad@fedoraproject.org>
+Copyright © 2012-2014, Elad Alfassa, <elad@fedoraproject.org>
 Copyright 2012, Edward Powell, embolalia.net
 Licensed under the Eiffel Forum License 2.
 
@@ -10,13 +10,17 @@ http://willie.dfbta.net
 
 This module will respond to .yt and .youtube commands and searches the youtubes.
 """
+from __future__ import unicode_literals
 
 from willie import web, tools
 from willie.module import rule, commands, example
 import json
 import re
-from HTMLParser import HTMLParser
-
+import sys
+if sys.version_info.major < 3:
+    from HTMLParser import HTMLParser
+else:
+    from html.parser import HTMLParser
 
 def setup(bot):
     regex = re.compile('(youtube.com/watch\S*v=|youtu.be/)([\w-]+)')
@@ -34,6 +38,7 @@ def ytget(bot, trigger, uri):
         else:
             video_entry = result['entry']
     except:
+        raise
         bot.say('Something went wrong when accessing the YouTube API.')
         return 'err'
     vid_info = {}
@@ -126,7 +131,7 @@ def ytsearch(bot, trigger):
     #modified from ytinfo: Copyright 2010-2011, Michael Yanovich, yanovich.net, Kenneth Sham.
     if not trigger.group(2):
         return
-    uri = 'http://gdata.youtube.com/feeds/api/videos?v=2&alt=json&max-results=1&q=' + trigger.group(2).encode('utf-8')
+    uri = 'https://gdata.youtube.com/feeds/api/videos?v=2&alt=json&max-results=1&q=' + trigger.group(2)
     uri = uri.replace(' ', '+')
     video_info = ytget(bot, trigger, uri)
 
@@ -153,15 +158,22 @@ def ytinfo(bot, trigger, found_match=None):
     """
     match = found_match or trigger
     #Grab info from YT API
-    uri = 'http://gdata.youtube.com/feeds/api/videos/' + match.group(2) + '?v=2&alt=json'
+    uri = 'https://gdata.youtube.com/feeds/api/videos/' + match.group(2) + '?v=2&alt=json'
 
     video_info = ytget(bot, trigger, uri)
     if video_info is 'err':
         return
 
     #combine variables and print
-    message = '[YouTube] Title: ' + video_info['title'] + \
-              ' | Duration: ' + video_info['length']
+#              ' | Uploader: ' + video_info['uploader'] + \
+#              ' | Comments: ' + video_info['comments'] + \
+#              ' | Likes: ' + video_info['likes'] + \
+#              ' | Dislikes: ' + video_info['dislikes']
+
+    message = '[YouTube] \x02' + video_info['title'] + \
+              '\x02 | Uploaded: ' + video_info['uploaded'] + \
+              ' | Duration: ' + video_info['length'] + \
+              ' | Views: ' + video_info['views']
 
     bot.say(HTMLParser().unescape(message))
 
@@ -171,7 +183,7 @@ def ytinfo(bot, trigger, found_match=None):
 def ytlast(bot, trigger):
     if not trigger.group(2):
         return
-    uri = 'https://gdata.youtube.com/feeds/api/users/' + trigger.group(2).encode('utf-8') + '/uploads?max-results=1&alt=json&v=2'
+    uri = 'https://gdata.youtube.com/feeds/api/users/' + trigger.group(2) + '/uploads?max-results=1&alt=json&v=2'
     video_info = ytget(bot, trigger, uri)
 
     if video_info is 'err':

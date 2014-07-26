@@ -1,3 +1,4 @@
+# coding=utf8
 """
 weather.py - Willie Yahoo! Weather Module
 Copyright 2008, Sean B. Palmer, inamidst.com
@@ -6,11 +7,13 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 from willie import web
 from willie.module import commands, example
-from lxml import etree
+
 import feedparser
+from lxml import etree
 
 
 def setup(bot):
@@ -25,16 +28,12 @@ def woeid_search(query):
     node for the result, so that location data can still be retrieved. Returns
     None if there is no result, or the woeid field is empty.
     """
-    query = web.urlencode({'q': 'select * from geo.placefinder where text="%s"' % query})
-    woeid_yml = 'http://query.yahooapis.com/v1/public/yql?' + query
-    body = web.get(woeid_yml)
+    query = 'q=select * from geo.placefinder where text="%s"' % query
+    body = web.get('http://query.yahooapis.com/v1/public/yql?' + query,
+                   dont_decode=True)
     parsed = etree.fromstring(body)
     first_result = parsed.find('results/Result')
-    if len(first_result) == 0:
-        return None
-
-    woeid = first_result.find('woeid').text
-    if not woeid:
+    if first_result is None or len(first_result) == 0:
         return None
     return first_result
 
@@ -53,62 +52,91 @@ def get_cover(parsed):
 def get_temp(parsed):
     try:
         condition = parsed.entries[0]['yweather_condition']
-    except KeyError:
+        temp = int(condition['temp'])
+    except (KeyError, ValueError):
         return 'unknown'
-    temp = int(condition['temp'])
     f = round((temp * 1.8) + 32, 2)
-    return (u'%d\u00B0C (%d\u00B0F)' % (temp, f))
+    return (u'%d\u00B0C' % (temp))
+
+
+def get_humidity(parsed):
+    try:
+        humidity = parsed['feed']['yweather_atmosphere']['humidity']
+    except (KeyError, ValueError):
+        return 'unknown'
+    return ('%s%%' % (humidity))
+
+
+def get_visibility(parsed):
+    try:
+        visibility = parsed['feed']['yweather_atmosphere']['visibility']
+    except (KeyError, ValueError):
+        return 'unknown'
+    return ('%skm' % (visibility))
 
 
 def get_pressure(parsed):
     try:
         pressure = parsed['feed']['yweather_atmosphere']['pressure']
-    except KeyError:
+        millibar = float(pressure)
+        inches = int(millibar / 33.7685)
+    except (KeyError, ValueError):
         return 'unknown'
-    millibar = float(pressure)
-    inches = int(millibar / 33.7685)
-    return ('%din (%dmb)' % (inches, int(millibar)))
+    return ('%dhPa' % (int(millibar)))
+
+
+def get_sunrise(parsed):
+    try:
+        sunrise = parsed['feed']['yweather_astronomy']['sunrise']
+    except (KeyError, ValueError):
+        return 'unknown'
+    return sunrise
+
+
+def get_sunset(parsed):
+    try:
+        sunset = parsed['feed']['yweather_astronomy']['sunset']
+    except (KeyError, ValueError):
+        return 'unknown'
+    return sunset
 
 
 def get_wind(parsed):
     try:
         wind_data = parsed['feed']['yweather_wind']
-    except KeyError:
-        return 'unknown'
-    try:
         kph = float(wind_data['speed'])
-    except ValueError:
-        kph = -1
-        # Incoming data isn't a number, default to zero.
-        # This is a dirty fix for issue #218
-    speed = int(round(kph / 1.852, 0))
-    degrees = int(wind_data['direction'])
+        m_s = float(round(kph / 3.6, 1))
+        speed = int(round(kph / 1.852, 0))
+        degrees = int(wind_data['direction'])
+    except (KeyError, ValueError):
+        return 'unknown'
+
     if speed < 1:
-        description = 'Calm'
+        description = 'Tyyntä'
     elif speed < 4:
-        description = 'Light air'
+        description = 'Pieni tuulenvire'
     elif speed < 7:
-        description = 'Light breeze'
+        description = 'Heikko tuuli'
     elif speed < 11:
-        description = 'Gentle breeze'
+        description = 'Kohtalainen tuuli'
     elif speed < 16:
-        description = 'Moderate breeze'
+        description = 'Kohtalainen tuuli'
     elif speed < 22:
-        description = 'Fresh breeze'
+        description = 'Kova tuuli'
     elif speed < 28:
-        description = 'Strong breeze'
+        description = 'Kovempi tuuli'
     elif speed < 34:
-        description = 'Near gale'
+        description = 'Melko navakka tuuli'
     elif speed < 41:
-        description = 'Gale'
+        description = 'Navakka tuuli'
     elif speed < 48:
-        description = 'Strong gale'
+        description = 'Melkein myrsky'
     elif speed < 56:
-        description = 'Storm'
+        description = 'Myrsky'
     elif speed < 64:
-        description = 'Violent storm'
+        description = 'Hurja myrsky'
     else:
-        description = 'Hurricane'
+        description = 'Hurrikaani'
 
     if (degrees <= 22.5) or (degrees > 337.5):
         degrees = u'\u2191'
@@ -127,10 +155,10 @@ def get_wind(parsed):
     elif (degrees > 292.5) and (degrees <= 337.5):
         degrees = u'\u2196'
 
-    return description + ' ' + str(speed) + 'kt (' + degrees + ')'
+    return description + ' \x02' + str(m_s) + 'm/s\x02 (' + degrees + ')'
 
 
-@commands('weather')
+@commands('weather', 'wea')
 @example('.weather London')
 def weather(bot, trigger):
     """.weather location - Show the weather at the given location."""
@@ -144,10 +172,13 @@ def weather(bot, trigger):
             return bot.msg(trigger.sender, "I don't know where you live. " +
                            'Give me a location, like .weather London, or tell me where you live by saying .setlocation London, for example.')
     else:
+        location = location.strip()
         if bot.db and location in bot.db.preferences:
             woeid = bot.db.preferences.get(location, 'woeid')
         else:
-            woeid = woeid_search(location).find('woeid').text
+            first_result = woeid_search(location)
+            if first_result is not None:
+                woeid = first_result.find('woeid').text
 
     if not woeid:
         return bot.reply("I don't know where that is.")
@@ -161,7 +192,12 @@ def weather(bot, trigger):
     temp = get_temp(parsed)
     pressure = get_pressure(parsed)
     wind = get_wind(parsed)
-    bot.say(u'%s: %s, %s, %s, %s' % (location, cover, temp, pressure, wind))
+    sunrise = get_sunrise(parsed)
+    sunset = get_sunset(parsed)
+    humidity = get_humidity(parsed)
+    visibility = get_visibility(parsed)
+
+    bot.say(u'[WEATHER] %s - %s, \x02%s\x02, %s, \x02%s\x02, ilmankosteus: \x02%s\x02, näkyvyys: \x02%s\x02, aurinko nousee \x02%s\x02 ja laskee \x02%s\x02' % (location[17:], cover, temp, wind, pressure, humidity, visibility, sunrise, sunset))
 
 
 @commands('setlocation', 'setwoeid')
@@ -170,6 +206,9 @@ def update_woeid(bot, trigger):
     """Set your default weather location."""
     if bot.db:
         first_result = woeid_search(trigger.group(2))
+        if first_result is None:
+            return bot.reply("I don't know where that is.")
+
         woeid = first_result.find('woeid').text
 
         bot.db.preferences.update(trigger.nick, {'woeid': woeid})

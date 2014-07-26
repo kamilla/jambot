@@ -1,4 +1,4 @@
-# coding=utf-8
+#coding: utf8
 """
 admin.py - Willie Admin Module
 Copyright 2010-2011, Michael Yanovich, Alek Rollyson, and Edward Powell
@@ -8,9 +8,11 @@ Licensed under the Eiffel Forum License 2.
 http://willie.dftba.net/
 
 """
+from __future__ import unicode_literals
 
 import re
-from willie.module import commands, priority
+from willie.module import commands, priority, OP
+from willie.tools import Nick
 
 
 def setup(bot):
@@ -25,7 +27,7 @@ def op(bot, trigger):
     Command to op users in a room. If no nick is given,
     willie will op the nick who sent the command
     """
-    if trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] >= OP:
         nick = trigger.group(2)
         channel = trigger.sender
         if not nick:
@@ -39,7 +41,7 @@ def deop(bot, trigger):
     Command to deop users in a room. If no nick is given,
     willie will deop the nick who sent the command
     """
-    if trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] >= OP:
         nick = trigger.group(2)
         channel = trigger.sender
         if not nick:
@@ -53,7 +55,7 @@ def voice(bot, trigger):
     Command to voice users in a room. If no nick is given,
     willie will voice the nick who sent the command
     """
-    if trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] >= OP:
         nick = trigger.group(2)
         channel = trigger.sender
         if not nick:
@@ -67,7 +69,7 @@ def devoice(bot, trigger):
     Command to devoice users in a room. If no nick is given,
     willie will devoice the nick who sent the command
     """
-    if trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] >= OP:
         nick = trigger.group(2)
         channel = trigger.sender
         if not nick:
@@ -81,17 +83,17 @@ def kick(bot, trigger):
     """
     Kick a user from the channel.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 2:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     nick = opt
     channel = trigger.sender
     reasonidx = 2
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 3:
             return
         nick = text[2]
@@ -131,16 +133,16 @@ def ban(bot, trigger):
     This give admins the ability to ban a user.
     The bot must be a Channel Operator for this command to work.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 2:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     banmask = opt
     channel = trigger.sender
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 3:
             return
         channel = opt
@@ -157,16 +159,16 @@ def unban(bot, trigger):
     This give admins the ability to unban a user.
     The bot must be a Channel Operator for this command to work.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 2:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     banmask = opt
     channel = trigger.sender
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 3:
             return
         channel = opt
@@ -183,16 +185,16 @@ def quiet(bot, trigger):
     This gives admins the ability to quiet a user.
     The bot must be a Channel Operator for this command to work
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 2:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     quietmask = opt
     channel = trigger.sender
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 3:
             return
         quietmask = text[2]
@@ -209,16 +211,16 @@ def unquiet(bot, trigger):
    This gives admins the ability to unquiet a user.
    The bot must be a Channel Operator for this command to work
    """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 2:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     quietmask = opt
     channel = trigger.sender
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 3:
             return
         quietmask = text[2]
@@ -237,17 +239,17 @@ def kickban(bot, trigger):
    The bot must be a Channel Operator for this command to work
    .kickban [#chan] user1 user!*@* get out of here
    """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group().split()
     argc = len(text)
     if argc < 4:
         return
-    opt = text[1]
+    opt = Nick(text[1])
     nick = opt
     mask = text[2]
     reasonidx = 3
-    if opt.startswith('#'):
+    if not opt.is_nick():
         if argc < 5:
             return
         channel = opt
@@ -268,7 +270,7 @@ def topic(bot, trigger):
     This gives ops the ability to change the topic.
     """
     purple, green, bold = '\x0306', '\x0310', '\x02'
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group(2)
     if text == '':
@@ -281,8 +283,7 @@ def topic(bot, trigger):
         mask = bot.db.preferences.get(channel, 'topic_mask')
         narg = len(re.findall('%s', mask))
     if not mask or mask == '':
-        mask = purple + 'Welcome to: ' + green + channel + purple \
-            + ' | ' + bold + 'Topic: ' + bold + green + '%s'
+        mask = '%s'
 
     top = trigger.group(2)
     text = tuple()
@@ -303,32 +304,23 @@ def set_mask(bot, trigger):
     Set the mask to use for .topic in the current channel. %s is used to allow
     substituting in chunks of text.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     if not bot.db:
         bot.say("I'm afraid I can't do that.")
     else:
-        bot.db.preferences.update(trigger.sender, {'topic_mask': trigger.group(2)})
+        bot.db.preferences.update(trigger.sender.lower(), {'topic_mask': trigger.group(2)})
         bot.say("Gotcha, " + trigger.nick)
 
 
 @commands('showmask')
 def show_mask(bot, trigger):
     """Show the topic mask for the current channel."""
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     if not bot.db:
         bot.say("I'm afraid I can't do that.")
-    elif trigger.sender in bot.db.preferences:
-        bot.say(bot.db.preferences.get(trigger.sender, 'topic_mask'))
+    elif trigger.sender.lower() in bot.db.preferences:
+        bot.say(bot.db.preferences.get(trigger.sender.lower(), 'topic_mask'))
     else:
         bot.say("%s")
-
-
-@commands('isop')
-def isop(bot, trigger):
-    """Show if you are an operator in the current channel"""
-    if trigger.isop:
-        bot.reply('yes')
-    else:
-        bot.reply('no')

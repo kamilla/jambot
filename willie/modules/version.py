@@ -1,3 +1,4 @@
+# coding=utf8
 """
 version.py - Willie Version Module
 Copyright 2009, Silas Baronda
@@ -5,34 +6,43 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 from datetime import datetime
-from subprocess import Popen, PIPE
 import willie
+import re
+from os import path
+
+log_line = re.compile('\S+ (\S+) (.*? <.*?>) (\d+) (\S+)\tcommit[^:]*: (.+)')
 
 
 def git_info():
-    p = Popen(["git", "log", "-n 1"], stdout=PIPE, close_fds=True)
-
-    commit = p.stdout.readline()
-    author = p.stdout.readline()
-    date = p.stdout.readline()
-    return commit, author, date
+    repo = path.join(path.dirname(path.dirname(path.dirname(__file__))), '.git')
+    head = path.join(repo, 'HEAD')
+    if path.isfile(head):
+        with open(head) as h:
+            head_loc = h.readline()[5:-1]  # strip ref: and \n
+        head_file = path.join(repo, head_loc)
+        if path.isfile(head_file):
+            with open(head_file) as h:
+                sha = h.readline()
+                if sha:
+                    return sha
 
 
 @willie.module.commands('version')
 def version(bot, trigger):
     """Display the latest commit version, if Willie is running in a git repo."""
-    commit, author, date = git_info()
-
-    if not commit.strip():
-        bot.reply("Willie v. " + willie.__version__)
+    release = willie.__version__
+    sha = git_info()
+    if not sha:
+        msg = 'Willie v. ' + release
+        if release[-4:] == '-git':
+            msg += ' at unknown commit.'
+        bot.reply(msg)
         return
 
-    bot.say(str(trigger.nick) + ": Willie v. %s at commit:" % willie.__version__)
-    bot.say("  " + commit)
-    bot.say("  " + author)
-    bot.say("  " + date)
+    bot.reply("Willie v. {} at commit: {}".format(willie.__version__, sha))
 
 
 @willie.module.rule('\x01VERSION\x01')

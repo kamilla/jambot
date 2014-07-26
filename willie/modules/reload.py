@@ -1,3 +1,4 @@
+# coding=utf8
 """
 reload.py - Willie Module Reloader Module
 Copyright 2008, Sean B. Palmer, inamidst.com
@@ -5,11 +6,13 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 import sys
 import os.path
 import time
 import imp
+from willie.tools import iteritems
 import willie.module
 import subprocess
 
@@ -26,20 +29,20 @@ def f_reload(bot, trigger):
     if name == bot.config.owner:
         return bot.reply('What?')
 
-    if (not name) or (name == '*') or (name.upper() == 'ALL THE THINGS'):
+    if not name or name == '*' or name.upper() == 'ALL THE THINGS':
         bot.callables = None
         bot.commands = None
         bot.setup()
         return bot.reply('done')
 
-    if not name in sys.modules:
-        return bot.reply('%s: no such module!' % name)
+    if name not in sys.modules:
+        return bot.reply('%s: not loaded, try the `load` command' % name)
 
     old_module = sys.modules[name]
 
     old_callables = {}
-    for obj_name, obj in vars(old_module).iteritems():
-        if bot.is_callable(obj):
+    for obj_name, obj in iteritems(vars(old_module)):
+        if bot.is_callable(obj) or bot.is_shutdown(obj):
             old_callables[obj_name] = obj
 
     bot.unregister(old_callables)
@@ -48,6 +51,10 @@ def f_reload(bot, trigger):
     # module does not override them.
     for obj_name in old_callables.keys():
         delattr(old_module, obj_name)
+
+    # Also delete the setup function
+    if hasattr(old_module, "setup"):
+        delattr(old_module, "setup")
 
     # Thanks to moot for prodding me on this
     path = old_module.__file__
@@ -70,23 +77,18 @@ def f_reload(bot, trigger):
     bot.reply('%r (version: %s)' % (module, modified))
 
 
-if sys.version_info >= (2, 7):
-    @willie.module.nickname_commands('update')
-    def update(bot, trigger):
-        if not trigger.admin:
-            return
+@willie.module.nickname_commands('update')
+def f_update(bot, trigger):
+    if not trigger.admin:
+        return
 
-        """Pulls the latest versions of all modules from Git"""
-        proc = subprocess.Popen('/usr/bin/git pull',
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, shell=True)
-        bot.reply(proc.communicate()[0])
+    """Pulls the latest versions of all modules from Git"""
+    proc = subprocess.Popen('/usr/bin/git pull',
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, shell=True)
+    bot.reply(proc.communicate()[0])
 
-        f_reload(bot, trigger)
-else:
-    @willie.module.nickname_commands('update')
-    def update(bot, trigger):
-        bot.say('You need to run me on Python 2.7 to do that.')
+    f_reload(bot, trigger)
 
 
 @willie.module.nickname_commands("load")
@@ -123,5 +125,27 @@ def f_load(bot, trigger):
     bot.reply('%r (version: %s)' % (module, modified))
 
 
-if __name__ == '__main__':
-    print __doc__.strip()
+# Catch PM based messages
+@willie.module.commands("reload")
+@willie.module.priority("low")
+@willie.module.thread(False)
+def pm_f_reload(bot, trigger):
+    """Wrapper for allowing delivery of .reload command via PM"""
+    if trigger.is_privmsg:
+        f_reload(bot, trigger)
+
+
+@willie.module.commands('update')
+def pm_f_update(bot, trigger):
+    """Wrapper for allowing delivery of .update command via PM"""
+    if trigger.is_privmsg:
+        f_update(bot, trigger)
+
+
+@willie.module.commands("load")
+@willie.module.priority("low")
+@willie.module.thread(False)
+def pm_f_load(bot, trigger):
+    """Wrapper for allowing delivery of .load command via PM"""
+    if trigger.is_privmsg:
+        f_load(bot, trigger)

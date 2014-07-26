@@ -1,3 +1,4 @@
+# coding=utf8
 """
 clock.py - Willie Clock Module
 Copyright 2008-9, Sean B. Palmer, inamidst.com
@@ -6,9 +7,23 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dfbta.net
 """
-import pytz
+from __future__ import unicode_literals
+
+try:
+    import pytz
+except ImportError:
+    pytz = None
+
 import datetime
-from willie.module import commands, example
+from willie.module import commands, example, OP
+from willie.tools import get_timezone, format_time
+
+
+def configure(config):
+    config.interactive_add('clock', 'tz',
+                           'Preferred time zone (http://dft.ba/-tz)', 'UTC')
+    config.interactive_add('clock', 'time_format',
+                           'Preferred time format (http://strftime.net)', '%F - %T%Z')
 
 
 def setup(bot):
@@ -23,44 +38,16 @@ def setup(bot):
 @example('.t America/New_York')
 def f_time(bot, trigger):
     """Returns the current time."""
-    tz = trigger.group(2)
-    if tz:
-        tz = tz.strip()
-        #We have a tz. If it's in all_timezones, we don't need to do anything
-        #more, because we know it's valid. Otherwise, we have to check if it's
-        #supposed to be a user, or just invalid
-        if tz not in pytz.all_timezones:
-            if bot.db and tz in bot.db.preferences:
-                tz = bot.db.preferences.get(tz, 'tz')
-                if not tz:
-                    bot.say("I'm sorry, I don't know %s's timezone"
-                            % trigger.group(2))
-                    return
-            else:
-                bot.say("I'm sorry, I don't know about the %s timezone or"
-                           " user." % tz)
-                return
-    #We don't have a timzeone. Is there one set? If not, just use UTC
-    elif bot.db:
-        if trigger.nick in bot.db.preferences:
-            tz = bot.db.preferences.get(trigger.nick, 'tz')
-        if not tz and trigger.sender in bot.db.preferences:
-            tz = bot.db.preferences.get(trigger.sender, 'tz')
-        if not tz:
-            tz = 'UTC'
+    if trigger.group(2):
+        zone = get_timezone(bot.db, bot.config, trigger.group(2).strip(), None, None)
+        if not zone:
+            bot.say('Could not find timezone %s.' % trigger.group(2).strip())
+            return
     else:
-        tz = 'UTC'
-    tzi = pytz.timezone(tz)
-    now = datetime.datetime.now(tzi)
-
-    tformat = ''
-    if bot.db:
-        if trigger.nick in bot.db.preferences:
-            tformat = bot.db.preferences.get(trigger.nick, 'time_format')
-        if not tformat and trigger.sender in bot.db.preferences:
-            tformat = bot.db.preferences.get(trigger.sender, 'time_format')
-
-    bot.say(now.strftime(tformat or "%F - %T%Z"))
+        zone = get_timezone(bot.db, bot.config, None, trigger.nick,
+                            trigger.sender)
+    time = format_time(bot.db, bot.config, zone, trigger.nick, trigger.sender)
+    bot.say(time)
 
 
 @commands('settz')
@@ -70,10 +57,14 @@ def update_user(bot, trigger):
     Set your preferred time zone. Most timezones will work, but it's best to
     use one from http://dft.ba/-tz
     """
-    if bot.db:
+    if not pytz:
+        bot.reply("Sorry, I don't have timezone support installed.")
+    elif not bot.db:
+        bot.reply("I can't remember that; I don't have a database.")
+    else:
         tz = trigger.group(2)
         if not tz:
-            bot.reply("What timzeone do you want to set? Try one from "
+            bot.reply("What timezone do you want to set? Try one from "
                          "http://dft.ba/-tz")
             return
         if tz not in pytz.all_timezones:
@@ -88,8 +79,6 @@ def update_user(bot, trigger):
                         "you use DST.")
         else:
             bot.reply('I now have you in the %s time zone.' % tz)
-    else:
-        bot.reply("I can't remember that; I don't have a database.")
 
 
 @commands('settimeformat', 'settf')
@@ -105,16 +94,10 @@ def update_user_format(bot, trigger):
             bot.reply("What format do you want me to use? Try using"
                          " http://strftime.net to make one.")
 
-        tz = ''
-        if bot.db:
-            if trigger.nick in bot.db.preferences:
-                tz = bot.db.preferences.get(trigger.nick, 'tz')
-            if not tz and trigger.sender in bot.db.preferences:
-                tz = bot.db.preferences.get(trigger.sender, 'tz')
-        now = datetime.datetime.now(pytz.timezone(tz or 'UTC'))
-        timef = ''
+        tz = get_timezone(bot.db, bot.config, None, None,
+                                       trigger.sender)
         try:
-            timef = now.strftime(tformat)
+            timef = format_time(zone=tz)
         except:
             bot.reply("That format doesn't work. Try using"
                          " http://strftime.net to make one.")
@@ -133,12 +116,16 @@ def update_channel(bot, trigger):
     """
     Set the preferred time zone for the channel.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
-    if bot.db:
+    elif not pytz:
+        bot.reply("Sorry, I don't have timezone support installed.")
+    elif not bot.db:
+        bot.reply("I can't remember that; I don't have a database.")
+    else:
         tz = trigger.group(2)
         if not tz:
-            bot.reply("What timzeone do you want to set? Try one from "
+            bot.reply("What timezone do you want to set? Try one from "
                          "http://dft.ba/-tz")
             return
         if tz not in pytz.all_timezones:
@@ -152,9 +139,8 @@ def update_channel(bot, trigger):
                         ", but you should use one from http://dft.ba/-tz if "
                         "you use DST.")
         else:
-            bot.reply('I now have you in the %s time zone.' % tz)
-    else:
-        bot.reply("I can't remember that; I don't have a database.")
+            bot.reply(
+                'I now have {} in the {} time zone.'.format(trigger.sender,tz))
 
 
 @commands('setchanneltimeformat', 'setctf')
@@ -164,24 +150,20 @@ def update_channel_format(bot, trigger):
     Sets your preferred format for time. Uses the standard strftime format. You
     can use http://strftime.net or your favorite search engine to learn more.
     """
-    if not trigger.isop:
+    if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
-    if bot.db:
+    elif not bot.db:
+        bot.reply("I can't remember that; I don't have a database.")
+    else:
         tformat = trigger.group(2)
         if not tformat:
             bot.reply("What format do you want me to use? Try using"
                          " http://strftime.net to make one.")
 
-        tz = ''
-        if bot.db:
-            if trigger.nick in bot.db.preferences:
-                tz = bot.db.preferences.get(trigger.nick, 'tz')
-            if not tz and trigger.sender in bot.db.preferences:
-                tz = bot.db.preferences.get(trigger.sender, 'tz')
-        now = datetime.datetime.now(pytz.timezone(tz or 'UTC'))
-        timef = ''
+        tz = get_timezone(bot.db, bot.config, None, None,
+                                       trigger.sender)
         try:
-            timef = now.strftime(tformat)
+            timef = format_time(zone=tz)
         except:
             bot.reply("That format doesn't work. Try using"
                          " http://strftime.net to make one.")
@@ -191,5 +173,4 @@ def update_channel_format(bot, trigger):
                      "unless a user has their own format set. (If the timezone"
                      " is wrong, you might try the settz and channeltz "
                      "commands)" % timef)
-    else:
-        bot.reply("I can't remember that; I don't have a database.")
+

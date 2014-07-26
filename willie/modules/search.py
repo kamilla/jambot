@@ -1,3 +1,4 @@
+# coding=utf8
 """
 search.py - Willie Web Search Module
 Copyright 2008-9, Sean B. Palmer, inamidst.com
@@ -6,18 +7,20 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 import re
 from willie import web
 from willie.module import commands, example
 import json
+import sys
 import time
 
 
 def google_ajax(query):
     """Search using AjaxSearch, and return its JSON."""
     uri = 'http://ajax.googleapis.com/ajax/services/search/web'
-    args = '?v=1.0&safe=off&q=' + web.quote(query)
+    args = '?v=1.0&safe=off&q=' + query
     bytes = web.get(uri + args)
     return json.loads(bytes)
 
@@ -111,7 +114,6 @@ r_bing = re.compile(r'<h3><a href="([^"]+)"')
 
 
 def bing_search(query, lang='en-GB'):
-    query = web.quote(query)
     base = 'http://www.bing.com/search?mkt=%s&q=' % lang
     bytes = web.get(base + query)
     m = r_bing.search(bytes)
@@ -123,7 +125,6 @@ r_duck = re.compile(r'nofollow" class="[^"]+" href="(.*?)">')
 
 def duck_search(query):
     query = query.replace('!', '')
-    query = web.quote(query)
     uri = 'http://duckduckgo.com/html/?q=%s&kl=uk-en' % query
     bytes = web.get(uri)
     m = r_duck.search(bytes)
@@ -135,10 +136,8 @@ def duck_api(query):
     if '!bang' in query.lower():
         return 'https://duckduckgo.com/bang.html'
 
-    uri = web.quote(query)
     uri = 'http://api.duckduckgo.com/?q=%s&format=json&no_html=1&no_redirect=1' % query
     results = json.loads(web.get(uri))
-    print results
     if results['Redirect']:
         return results['Redirect']
     else:
@@ -207,7 +206,7 @@ def suggest(bot, trigger):
         return bot.reply("No query term.")
     query = trigger.group(2)
     uri = 'http://websitedev.de/temp-bin/suggest.pl?q='
-    answer = web.get(uri + web.quote(query).replace('+', '%2B'))
+    answer = web.get(uri+query.replace('+', '%2B'))
     if answer:
         bot.say(answer)
     else:

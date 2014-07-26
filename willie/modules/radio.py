@@ -1,3 +1,4 @@
+# coding=utf8
 """
 radio.py - ShoutCAST radio Module
 Copyright 2012, Dimitri "Tyrope" Molenaars, TyRope.nl
@@ -5,11 +6,12 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net/
 """
+from __future__ import unicode_literals
 
 from time import sleep
 from xml.dom.minidom import parseString
 import willie.web as web
-from willie.module import commands
+from willie.module import commands, OP
 
 
 def configure(config):
@@ -63,7 +65,7 @@ def currentSong(bot, trigger):
         song = web.get(radioURL % 'currentsong')
     except Exception as e:
         bot.say('The radio is not responding to the song request.')
-        bot.debug('radio', 'Exception while trying to get current song: %s' % e, 'warning')
+        bot.debug(__file__, 'Exception while trying to get current song: %s' % e, 'warning')
     if song:
         bot.say('Now playing: ' + song)
     else:
@@ -76,7 +78,7 @@ def nextSong(bot, trigger):
         song = web.get(radioURL % 'nextsong')
     except Exception as e:
         bot.say('The radio is not responding to the song request.')
-        bot.debug('radio', 'Exception while trying to get next song: %s' % e, 'warning')
+        bot.debug(__file__, 'Exception while trying to get next song: %s' % e, 'warning')
     if song:
         bot.say('Next up: ' + song)
     else:
@@ -99,7 +101,7 @@ def radio(bot, trigger):
         bot.say('Usage: .radio (next|now|off|on|song|soon|stats)')
         return
     if args[0] == 'on':
-        if not trigger.isop:
+        if bot.privileges[trigger.sender][trigger.nick] < OP:
             return
         if checkSongs != 0:
             return bot.reply('Radio data checking is already on.')
@@ -115,7 +117,7 @@ def radio(bot, trigger):
             except Exception as e:
                 checkSongs -= 1
                 if checkSongs == 0:
-                    bot.debug('radio', 'Exception while trying to get periodic radio data: %s' % e, 'warning')
+                    bot.debug(__file__, 'Exception while trying to get periodic radio data: %s' % e, 'warning')
                     bot.say('The radio is not responding to the song request.')
                     bot.say('Turning off radio data checking.')
                 break
@@ -130,7 +132,7 @@ def radio(bot, trigger):
                     bot.say(csong)
             sleep(5)
     elif args[0] == 'off':
-        if not trigger.isop:
+        if bot.privileges[trigger.sender][trigger.nick] < OP:
             return
         if checkSongs == 0:
             bot.reply('Radio data checking is already off.')

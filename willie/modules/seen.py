@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# coding=utf8
 """
 seen.py - Willie Seen Module
 Copyright 2008, Sean B. Palmer, inamidst.com
@@ -7,25 +7,14 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 import time
 import datetime
-import pytz
-from willie.tools import Ddict, Nick
+from willie.tools import Ddict, Nick, get_timezone, format_time
 from willie.module import commands, rule, priority
 
 seen_dict = Ddict(dict)
-
-
-def get_user_time(bot, nick):
-    tz = 'UTC'
-    tformat = None
-    if bot.db and nick in bot.db.preferences:
-            tz = bot.db.preferences.get(nick, 'tz') or 'UTC'
-            tformat = bot.db.preferences.get(nick, 'time_format')
-    if tz not in pytz.all_timezones_set:
-        tz = 'UTC'
-    return (pytz.timezone(tz.strip()), tformat or '%Y-%m-%d %H:%M:%S %Z')
 
 
 @commands('seen')
@@ -40,9 +29,11 @@ def seen(bot, trigger):
         channel = seen_dict[nick]['channel']
         message = seen_dict[nick]['message']
 
-        tz, tformat = get_user_time(bot, trigger.nick)
-        saw = datetime.datetime.fromtimestamp(timestamp, tz)
-        timestamp = saw.strftime(tformat)
+        tz = get_timezone(bot.db, bot.config, None, trigger.nick,
+                          trigger.sender)
+        saw = datetime.datetime.utcfromtimestamp(timestamp)
+        timestamp = format_time(bot.db, bot.config, tz, trigger.nick,
+                                trigger.sender, saw)
 
         msg = "I last saw %s at %s on %s, saying %s" % (nick, timestamp, channel, message)
         bot.say(str(trigger.nick) + ': ' + msg)
@@ -53,7 +44,7 @@ def seen(bot, trigger):
 @rule('(.*)')
 @priority('low')
 def note(bot, trigger):
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         nick = Nick(trigger.nick)
         seen_dict[nick]['timestamp'] = time.time()
         seen_dict[nick]['channel'] = trigger.sender

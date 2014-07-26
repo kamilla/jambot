@@ -1,3 +1,4 @@
+# coding=utf8
 """
 find.py - Willie Spelling correction module
 Copyright 2011, Michael Yanovich, yanovich.net
@@ -10,6 +11,7 @@ Contributions from: Matt Meinwald and Morgan Goose
 This module will fix spelling errors if someone corrects them
 using the sed notation (s///) commonly found in vi/vim.
 """
+from __future__ import unicode_literals
 
 import re
 from willie.tools import Nick, WillieMemory
@@ -26,7 +28,7 @@ def collectlines(bot, trigger):
     """Create a temporary log of what people say"""
 
     # Don't log things in PM
-    if not trigger.sender.startswith('#'):
+    if trigger.is_privmsg:
         return
 
     # Add a log for the channel and nick, if there isn't already one
@@ -70,7 +72,7 @@ def collectlines(bot, trigger):
 @priority('high')
 def findandreplace(bot, trigger):
     # Don't bother in PM
-    if not trigger.sender.startswith('#'):
+    if trigger.is_privmsg:
         return
 
     # Correcting other person vs self.

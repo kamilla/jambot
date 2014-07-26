@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding=utf8
 """This module has classes and functions that can help in writing tests.
 
 test_tools.py - Willie misc tools
@@ -7,8 +7,11 @@ Licensed under the Eiffel Forum License 2.
 
 https://willie.dftba.net
 """
+from __future__ import unicode_literals
+
 import sys
 import re
+import os
 
 import willie.config
 import willie.bot
@@ -41,6 +44,18 @@ class MockWillie(object):
         cfg = self.config
         cfg.parser.set('core', 'admins', '')
         cfg.parser.set('core', 'owner', '')
+        home_dir = os.path.join(os.path.expanduser('~'), '.willie')
+        if not os.path.exists(home_dir):
+            os.mkdir(home_dir)
+        cfg.parser.set('core', 'homedir', home_dir)
+    
+    def debug(self, _tag, _text, _level):
+        """Mock implementation of Bot.debug.
+        
+        Returns that we wrote something somewhere (lies).
+        
+        """
+        return False
 
 
 class MockWillieWrapper(object):
@@ -59,7 +74,7 @@ class MockWillieWrapper(object):
 
 
 def get_example_test(tested_func, msg, results, privmsg, admin,
-        owner, repeat, use_regexp):
+                     owner, repeat, use_regexp, ignore = []):
     """Get a function that calls tested_func with fake wrapper and trigger.
 
     Args:
@@ -74,6 +89,8 @@ def get_example_test(tested_func, msg, results, privmsg, admin,
         repeat - How many times to repeat the test. Usefull for tests that
             return random stuff.
         use_regexp = Bool. If true, results is in regexp format.
+        ignore - List of strings to ignore.
+
     """
     def test():
         bot = MockWillie("NickName", admin=admin, owner=owner)
@@ -90,22 +107,35 @@ def get_example_test(tested_func, msg, results, privmsg, admin,
         sender = bot.nick if privmsg else "#channel"
         hostmask = "%s!%s@%s" % (bot.nick, "UserName", "example.com")
         origin_args = ["PRIVMSG", sender, msg]
+        tags = {}  # TODO enable testing with message tags somehow
 
-        origin = willie.irc.Origin(bot, hostmask, origin_args)
+        origin = willie.irc.Origin(bot, hostmask, origin_args, tags)
         trigger = willie.bot.Willie.Trigger(
-                msg, origin, msg, match, origin_args[0], origin_args, bot)
+            msg, origin, msg, match, origin_args[0], origin_args, bot
+        )
 
         module = sys.modules[tested_func.__module__]
         if hasattr(module, 'setup'):
             module.setup(bot)
 
-        for _i in xrange(repeat):
+        def isnt_ignored(value):
+            """Return True if value doesn't match any re in ignore list."""
+            for ignored_line in ignore:
+                if re.match(ignored_line, value):
+                    return False
+            return True
+
+        for _i in range(repeat):
             wrapper = MockWillieWrapper(bot, origin)
             tested_func(wrapper, trigger)
+            wrapper.output = list(filter(isnt_ignored, wrapper.output))
             assert len(wrapper.output) == len(results)
             for result, output in zip(results, wrapper.output):
+                if type(output) is bytes:
+                    output = output.decode('utf-8')
                 if use_regexp:
-                    assert re.match(result, output) is not None
+                    if not re.match(result, output):
+                        assert result == output
                 else:
                     assert result == output
 
@@ -113,13 +143,12 @@ def get_example_test(tested_func, msg, results, privmsg, admin,
 
 
 def insert_into_module(func, module_name, base_name, prefix):
-    """Add a function into a module
-    """
+    """Add a function into a module."""
     func.__module__ = module_name
     module = sys.modules[module_name]
     # Make sure the func method does not overwrite anything.
-    for i in xrange(1000):
-        func.__name__ = "%s_%s_%s" % (prefix, base_name, i)
+    for i in range(1000):
+        func.__name__ = str("%s_%s_%s" % (prefix, base_name, i))
         if not hasattr(module, func.__name__):
             break
     setattr(module, func.__name__, func)

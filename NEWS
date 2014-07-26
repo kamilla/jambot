@@ -1,3 +1,90 @@
+Changes between 4.2.0 and 4.3.0
+===============================
+Module Changes (for users):
+* A new channel logging module is added
+* Misc bugfixes, especially when running with Python 3
+
+Core changes (for users):
+* Fixed a regression that caused numerous errors in willie.web
+* Misc bugfixes
+
+API Changes (for developers):
+* Nick instances now have an `is_nick` attribute, which is True when the value is a valid nickname (as opposed to a channel)
+
+Changes between 4.1.0 and 4.2.0
+===============================
+Module Changes (for users):
+* A new .cur command can convert a number of currencies, including Bitcoin
+* .c can now understand a comma used as a radix point (rather than a period)
+* .w can now look in the Wikipedia for a specified (or configurable default) language
+* Timezones are now more user-friendly, and used more consistently across modules
+* Misc bugfixes
+
+Core Changes (for users):
+* willie.web now verifies HTTPS connections properly
+* The SQLite database file respects use of ~ in the configured filename
+* Willie can now run in Python 3
+* Willie now depends on python-backports.ssl_match_hostname (see README.rst for installation instructions)
+* Misc bugfixes
+
+API Changes (for developers):
+* trigger.is_privmsg is added for an easy way to see if a trigger was created in a private or channel message
+* get_timezone and format_time are added to tools to make displaying time according to user/channel format easier
+* Added bot.notice and an optinal notice parameter for bot.reply for easier sending of IRC NOTICE messages
+
+
+Changes between 4.0.1 and 4.1.0
+===============================
+Module Changes (for users):
+* Admin-only .set command can now set non-existent config values
+* The meetbot .endmeeting command now works properly
+* Significant improvements made to RSS module
+  * The database structure for storing RSS feeds has been modified. The module will attempt to migrate old data.
+  * Command syntax has changed in multiple ways
+  * .rss help is now available with more detailed information on usage.
+  * Module is overall better-behaved and less buggy
+* Traceback can now be attached to a GitHub issue from Willie's logs
+* GitHub module no longer puts "IRC" tag on issues it creates
+* A .listactions command is added to allow actions to be listed before the end of a meeting
+* Dice now limits itself to 1000 dice, and output is cleaned up
+* Willie now joins channels when invited
+* Reddit module no longer gives an error if the submitter's account has been deleted
+* A new .comments feature allows optional comments on meetings, e.g. from those muted in the channel
+* .xkcd is more robust, and can now access the nth-latest comic
+* calc module now uses an internal calculator, rather than the discontinued iGoogle calculator
+
+
+Core Changes (for users):
+* Memory lock and unlock no longer cause errors
+* Debugging target no longer needs to be a channel
+* Whitespace can now be used in the command prefix
+* Line numbers are given when modules fail to load
+* Error messages are more consistent across core and modules
+* Willie now retries joining channels if it fails initially
+* sqlite is now the default and recommended database type
+  * MySQL remains supported; support may be dropped in a later version
+  * MySQLdb is no longer listed as a recommended dependency
+* IRCv3 is now largely supported
+  * Willie can now authenticate with SASL
+
+
+API Changes (for developers):
+* Modules can now provide a shutdown() function to clean up when the bot is quitting or the module is reloading
+* web.get and web.post can be told to limit how much they read from a URL, to prevent malicious use
+* A new @unblockable decorator allows callables to be run even when triggered by otherwise blocked users
+* Willie can now connect over IPv6
+* If the channel given to bot.join contains a space, the part after the space will be used as the password
+* IRCv3 is now largely supported
+  * Modules can now request capabilities from the server.
+  * Message tags, if enabled, can be read from trigger.tags
+
+Changes between 4.0.0 and 4.0.1
+===============================
+Core Changes (for users):
+* Setup script once again works properly
+* Message splitting now works properly
+* Bug fixes in handling of nick and hostmask blocks
+
 Changes between 3.2.0 and 4.0.0
 ===============================
 Module Changes (for users):

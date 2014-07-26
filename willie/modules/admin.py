@@ -1,4 +1,4 @@
-# coding=utf-8
+#coding: utf8
 """
 admin.py - Willie Admin Module
 Copyright 2010-2011, Sean B. Palmer (inamidst.com) and Michael Yanovich
@@ -8,8 +8,9 @@ Copyright 2013, Ari Koivula <ari@koivu.la>
 
 Licensed under the Eiffel Forum License 2.
 
-http://willie.dfbta.net
+http://willie.dftba.net
 """
+from __future__ import unicode_literals
 
 import willie.module
 
@@ -29,7 +30,7 @@ def configure(config):
 def join(bot, trigger):
     """Join the specified channel. This is an admin-only command."""
     # Can only be done in privmsg by an admin
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
 
     if trigger.admin:
@@ -48,7 +49,7 @@ def join(bot, trigger):
 def part(bot, trigger):
     """Part the specified channel. This is an admin-only command."""
     # Can only be done in privmsg by an admin
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.admin:
         return
@@ -65,7 +66,7 @@ def part(bot, trigger):
 def quit(bot, trigger):
     """Quit from the server. This is an owner-only command."""
     # Can only be done in privmsg by the owner
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.owner:
         return
@@ -85,9 +86,11 @@ def msg(bot, trigger):
     Send a message to a given channel or nick. Can only be done in privmsg by an
     admin.
     """
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.admin:
+        return
+    if trigger.group(2) is None:
         return
 
     channel, _sep, message = trigger.group(2).partition(' ')
@@ -105,9 +108,11 @@ def me(bot, trigger):
     Send an ACTION (/me) to a given channel or nick. Can only be done in privmsg
     by an admin.
     """
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.admin:
+        return
+    if trigger.group(2) is None:
         return
 
     channel, _sep, action = trigger.group(2).partition(' ')
@@ -117,6 +122,18 @@ def me(bot, trigger):
 
     msg = '\x01ACTION %s\x01' % action
     bot.msg(channel, msg)
+
+
+@willie.module.event('INVITE')
+@willie.module.rule('.*')
+@willie.module.priority('low')
+def invite_join(bot, trigger):
+    """
+    Join a channel willie is invited to, if the inviter is an admin.
+    """
+    if not trigger.admin:
+        return
+    bot.join(trigger.args[1])
 
 
 @willie.module.event('KICK')
@@ -140,7 +157,7 @@ def hold_ground(bot, trigger):
 @willie.module.priority('low')
 def mode(bot, trigger):
     """Set a user mode on Willie. Can only be done in privmsg by an admin."""
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.admin:
         return
@@ -160,7 +177,7 @@ def set_config(bot, trigger):
     If there is no section, section will default to "core".
     If value is None, the option will be deleted.
     """
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         bot.reply("This command only works as a private message.")
         return
     if not trigger.admin:
@@ -177,14 +194,12 @@ def set_config(bot, trigger):
         bot.reply("Usage: .set section.option value")
         return
 
-    # Don't modify non-existing values to guard against typos.
-    if not bot.config.has_option(section, option):
-        bot.reply("Option %s.%s does not exist." % (section, option))
-        return
-
     # Display current value if no value is given.
     value = trigger.group(4)
     if not value:
+        if not bot.config.has_option(section, option):
+            bot.reply("Option %s.%s does not exist." % (section, option))
+            return
         # Except if the option looks like a password. Censor those to stop them
         # from being put on log files.
         if option.endswith("password") or option.endswith("pass"):
@@ -202,12 +217,8 @@ def set_config(bot, trigger):
 @willie.module.example('.save')
 def save_config(bot, trigger):
     """Save state of willies config object to the configuration file."""
-    if trigger.sender.startswith('#'):
+    if not trigger.is_privmsg:
         return
     if not trigger.admin:
         return
     bot.config.save()
-
-
-if __name__ == '__main__':
-    print __doc__.strip()

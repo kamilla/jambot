@@ -1,10 +1,12 @@
-# -*- coding: utf8 -*-
+# coding=utf8
 """
 announce.py - Send a message to all channels
 Copyright © 2013, Elad Alfassa, <elad@fedoraproject.org>
 Licensed under the Eiffel Forum License 2.
 
 """
+from __future__ import unicode_literals
+
 from willie.module import commands, example
 
 
@@ -18,4 +20,5 @@ def announce(bot, trigger):
         bot.reply('Sorry, I can\'t let you do that')
         return
     for channel in bot.channels:
-        bot.msg(channel, '[ANNOUNCMENT] %s' % trigger.group(2))
+        bot.msg(channel, '[ANNOUNCEMENT] %s' % trigger.group(2))
+

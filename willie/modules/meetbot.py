@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# coding=utf8
 """
 meetbot.py - Willie meeting logger module
 Copyright © 2012, Elad Alfassa, <elad@fedoraproject.org>
@@ -6,12 +6,13 @@ Licensed under the Eiffel Forum License 2.
 
 This module is an attempt to implement at least some of the functionallity of Debian's meetbot
 """
+from __future__ import unicode_literals
 import time
 import os
-import urllib2
+from willie.web import quote
 from willie.modules.url import find_title
 from willie.module import example, commands, rule, priority
-from willie.tools import Ddict
+from willie.tools import Ddict, Nick
 import codecs
 
 
@@ -37,11 +38,13 @@ head (can stop the meeting, plus all abilities of chairs)
 chairs (can add infolines to the logs)
 title
 current subject
+comments (what people who aren't voiced want to add)
 
 Using channel as the meeting ID as there can't be more than one meeting in a channel at the same time.
 """
 meeting_log_path = ''  # To be defined on meeting start as part of sanity checks, used by logging functions so we don't have to pass them bot
 meeting_log_baseurl = ''  # To be defined on meeting start as part of sanity checks, used by logging functions so we don't have to pass them bot
+meeting_actions = {}  # A dict of channels to the actions that have been created in them. This way we can have .listactions spit them back out later on.
 
 
 #Get the logfile name for the meeting in the requested channel
@@ -82,7 +85,7 @@ def logHTML_end(channel):
     logfile = codecs.open(meeting_log_path + channel + '/' + figure_logfile_name(channel) + '.html', 'a', encoding='utf-8')
     current_time = time.strftime('%H:%M:%S', time.gmtime())
     logfile.write('</ul>\n<h4>Meeting ended at %s UTC</h4>\n' % current_time)
-    plainlog_url = meeting_log_baseurl + urllib2.quote(channel + '/' + figure_logfile_name(channel) + '.log')
+    plainlog_url = meeting_log_baseurl + quote(channel + '/' + figure_logfile_name(channel) + '.log')
     logfile.write('<a href="%s">Full log</a>' % plainlog_url)
     logfile.write('\n</body>\n</html>')
     logfile.close()
@@ -129,7 +132,7 @@ def startmeeting(bot, trigger):
     if ismeetingrunning(trigger.sender):
         bot.say('Can\'t do that, there is already a meeting in progress here!')
         return
-    if not trigger.sender.startswith('#'):
+    if trigger.is_privmsg:
         bot.say('Can only start meetings in channels')
         return
     if not bot.config.has_section('meetbot'):
@@ -143,6 +146,7 @@ def startmeeting(bot, trigger):
         meetings_dict[trigger.sender]['title'] = trigger.group(2)
     meetings_dict[trigger.sender]['head'] = trigger.nick.lower()
     meetings_dict[trigger.sender]['running'] = True
+    meetings_dict[trigger.sender]['comments'] = []
 
     global meeting_log_path
     meeting_log_path = bot.config.meetbot.meeting_log_path
@@ -163,7 +167,11 @@ def startmeeting(bot, trigger):
     #Okay, meeting started!
     logplain('Meeting started by ' + trigger.nick.lower(), trigger.sender)
     logHTML_start(trigger.sender)
-    bot.say('Meeting started! use .action, .agreed, .info, .chairs and .subject to control the meeting. to end the meeting, type .endmeeting')
+    meeting_actions[trigger.sender] = []
+    bot.say('Meeting started! use .action, .agreed, .info, .chairs, .subject and .comments to control the meeting. to end the meeting, type .endmeeting')
+    bot.say('Users without speaking permission can use .comment ' +
+            trigger.sender + ' followed by their comment in a PM with me to '
+            'vocalize themselves.')
 
 
 #Change the current subject (will appear as <h3> in the HTML log)
@@ -192,7 +200,7 @@ def meetingsubject(bot, trigger):
 
 
 #End the meeting
-@commands('.endmeeting')
+@commands('endmeeting')
 @example('.endmeeting')
 def endmeeting(bot, trigger):
     """
@@ -209,10 +217,11 @@ def endmeeting(bot, trigger):
     #TODO: Humanize time output
     bot.say("Meeting ended! total meeting length %d seconds" % meeting_length)
     logHTML_end(trigger.sender)
-    htmllog_url = meeting_log_baseurl + urllib2.quote(trigger.sender + '/' + figure_logfile_name(trigger.sender) + '.html')
+    htmllog_url = meeting_log_baseurl + quote(trigger.sender + '/' + figure_logfile_name(trigger.sender) + '.html')
     logplain('Meeting ended by %s, total meeting length %d seconds' % (trigger.nick, meeting_length), trigger.sender)
     bot.say('Meeting minutes: ' + htmllog_url)
     meetings_dict[trigger.sender] = Ddict(dict)
+    del meeting_actions[trigger.sender]
 
 
 #Set meeting chairs (people who can control the meeting)
@@ -258,7 +267,18 @@ def meetingaction(bot, trigger):
         return
     logplain('ACTION: ' + trigger.group(2), trigger.sender)
     logHTML_listitem('<span style="font-weight: bold">Action: </span>' + trigger.group(2), trigger.sender)
+    meeting_actions[trigger.sender].append(trigger.group(2))
     bot.say('ACTION: ' + trigger.group(2))
+
+
+@commands('listactions')
+@example('.listactions')
+def listactions(bot, trigger):
+    if not ismeetingrunning(trigger.sender):
+        bot.say('Can\'t do that, start meeting first')
+        return
+    for action in meeting_actions[trigger.sender]:
+        bot.say('ACTION: ' + action)
 
 
 #Log agreed item in the HTML log
@@ -344,3 +364,55 @@ def log_meeting(bot, trigger):
     if trigger.startswith('.endmeeting') or trigger.startswith('.chairs') or trigger.startswith('.action') or trigger.startswith('.info') or trigger.startswith('.startmeeting') or trigger.startswith('.agreed') or trigger.startswith('.link') or trigger.startswith('.subject'):
         return
     logplain('<' + trigger.nick + '> ' + trigger, trigger.sender)
+
+
+@commands('comment')
+def take_comment(bot, trigger):
+    """
+    Log a comment, to be shown with other comments when a chair uses .comments.
+    Intended to allow commentary from those outside the primary group of people
+    in the meeting.
+
+    Used in private message only, as `.comment <#channel> <comment to add>`
+    https://github.com/embolalia/willie/wiki/Using-the-meetbot-module
+    """
+    if not trigger.sender.is_nick():
+        return
+    if not trigger.group(4):  # <2 arguements were given
+        bot.say('Usage: .comment <#channel> <comment to add>')
+        return
+
+    target, message = trigger.group(2).split(None, 1)
+    target = Nick(target)
+    if not ismeetingrunning(target):
+        bot.say("There's not currently a meeting in that channel.")
+    else:
+        meetings_dict[trigger.group(3)]['comments'].append((trigger.nick, message))
+        bot.say("Your comment has been recorded. It will be shown when the"
+                " chairs tell me to show the comments.")
+        bot.msg(meetings_dict[trigger.group(3)]['head'], "A new comment has been recorded.")
+
+
+@commands('comments')
+def show_comments(bot, trigger):
+    """
+    Show the comments that have been logged for this meeting with .comment.
+    https://github.com/embolalia/willie/wiki/Using-the-meetbot-module
+    """
+    if not ismeetingrunning(trigger.sender):
+        return
+    if not ischair(trigger.nick, trigger.sender):
+        bot.say('Only meeting head or chairs can do that')
+        return
+    comments = meetings_dict[trigger.sender]['comments']
+    if comments:
+        msg = 'The following comments were made:'
+        bot.say(msg)
+        logplain('<%s> %s' % (bot.nick, msg), trigger.sender)
+        for comment in comments:
+            msg = '<%s> %s' % comment
+            bot.say(msg)
+            logplain('<%s> %s' % (bot.nick, msg), trigger.sender)
+        meetings_dict[trigger.sender]['comments'] = []
+    else:
+        bot.say('No comments have been logged.')

@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding=utf8
 """
 calc.py - Willie Calculator Module
 Copyright 2008, Sean B. Palmer, inamidst.com
@@ -6,15 +6,18 @@ Licensed under the Eiffel Forum License 2.
 
 http://willie.dfbta.net
 """
+from __future__ import unicode_literals
 
 import re
 from willie import web
 from willie.module import commands, example
-#from willie.tools import eval_equation
-import willie.tools
+from willie.tools import eval_equation
 from socket import timeout
-import string
-import HTMLParser
+import sys
+if sys.version_info.major < 3:
+    import HTMLParser
+else:
+    import html.parser as HTMLParser
 
 
 @commands('c', 'calc')
@@ -23,8 +26,10 @@ def c(bot, trigger):
     """Google calculator."""
     if not trigger.group(2):
         return bot.reply("Nothing to calculate.")
+    # Account for the silly non-Anglophones and their silly radix point.
+    eqn = trigger.group(2).replace(',', '.')
     try:
-        result = str(eval_equation(trigger.group(2)))
+        result = str(eval_equation(eqn))
     except ZeroDivisionError:
         result = "Division by zero is not supported in this universe."
     except Exception:
@@ -38,6 +43,9 @@ def c(bot, trigger):
 @example('.py len([1,2,3])', '3')
 def py(bot, trigger):
     """Evaluate a Python expression."""
+    if not trigger.group(2):
+        return bot.say("Need an expression to evaluate")
+
     query = trigger.group(2)
     uri = 'http://tumbolia.appspot.com/py/'
     answer = web.get(uri + web.quote(query))
@@ -49,7 +57,7 @@ def py(bot, trigger):
 
 @commands('wa', 'wolfram')
 @example('.wa sun mass / earth mass',
-         '[WOLFRAM] M_(.)\/M_(+)  (solar mass per Earth mass) = 332948.6')
+         '[WOLFRAM] M_sun\/M_earth  (solar mass per Earth mass) = 332948.6')
 def wa(bot, trigger):
     """Wolfram Alpha calculator"""
     if not trigger.group(2):
@@ -57,11 +65,12 @@ def wa(bot, trigger):
     query = trigger.group(2)
     uri = 'http://tumbolia.appspot.com/wa/'
     try:
-        answer = web.get(uri + web.quote(query.replace('+', '%2B')), 45)
+        answer = web.get(uri + web.quote(query.replace('+', 'plus')), 45,
+                         dont_decode=True)
     except timeout as e:
         return bot.say('[WOLFRAM ERROR] Request timed out')
     if answer:
-        answer = answer.decode('string_escape')
+        answer = answer.decode('unicode_escape')
         answer = HTMLParser.HTMLParser().unescape(answer)
         # This might not work if there are more than one instance of escaped
         # unicode chars But so far I haven't seen any examples of such output
@@ -71,7 +80,7 @@ def wa(bot, trigger):
             char_code = match.group(1)
             char = unichr(int(char_code, 16))
             answer = answer.replace('\:' + char_code, char)
-        waOutputArray = string.split(answer, ";")
+        waOutputArray = answer.split(";")
         if(len(waOutputArray) < 2):
             if(answer.strip() == "Couldn't grab results from json stringified precioussss."):
                 # Answer isn't given in an IRC-able format, just link to it.

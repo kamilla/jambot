@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding=utf8
 """This module is meant to be imported from willie modules.
 
 It defines the following decorators for defining willie callables:
@@ -11,15 +11,16 @@ willie.module.priority
 willie.module.event
 willie.module.rate
 willie.module.example
-
-willie/module.py - Willie IRC Bot (http://willie.dftba.net/)
-Copyright 2013, Ari Koivula, <ari@koivu.la>
-Copyright © 2013, Elad Alfassa <elad@fedoraproject.org>
-
-Licensed under the Eiffel Forum License 2.
 """
+#Copyright 2013, Ari Koivula, <ari@koivu.la>
+#Copyright © 2013, Elad Alfassa <elad@fedoraproject.org>
+#Copyright 2013, Lior Ramati <firerogue517@gmail.com>
+#Licensed under the Eiffel Forum License 2.
+
+from __future__ import unicode_literals
 
 import willie.test_tools
+import functools
 
 NOLIMIT = 1
 """Return value for ``callable``\s, which supresses rate limiting for the call.
@@ -31,12 +32,30 @@ prevented from triggering the command again within the rate limit. This can
 be used, for example, to allow a user to rety a failed command immediately.
 """
 
+VOICE = 1
+HALFOP = 2
+OP = 4
+ADMIN = 8
+OWNER = 16
+
+
+def unblockable(function):
+    """Decorator. Equivalent to func.unblockable = True.
+
+    If this decorator is used, the function will be called, even if the bot has
+    been configured to ignore commands from the user. This can be used to
+    ensure events such as JOIN are always recorded.
+
+    """
+    function.unblockable = True
+    return function
+
 
 def interval(*args):
-    """Decorator. Equivalent to func.interval.append(value)
+    """Decorator. Equivalent to func.interval.append(value).
 
-    A function that uses this decorator will be called every X seconds, where
-    X is the argument. This decorator can be used multiple times for multiple
+    A function that uses this decorator will be called every X seconds, where X
+    is the argument. This decorator can be used multiple times for multiple
     intervals, or all intervals can be given at once as arguments. The first
     time the function will be called is X seconds after the bot was started.
 
@@ -47,12 +66,14 @@ def interval(*args):
     There is no guarantee that the bot is connected to a server or joined a
     channel when the function is called, so care must be taken.
 
-    Example:
+    Example:::
+
         import willie.module
         @willie.module.interval(5)
         def spam_every_5s(bot):
             if "#here" in bot.channels:
                 bot.msg("#here", "It has been five seconds!")
+
     """
     def add_attribute(function):
         if not hasattr(function, "interval"):
@@ -84,6 +105,7 @@ def rule(value):
     values would be joined together to form a singular regular expression.
     However, these kinds of rules add no functionality over simple regular
     expressions, and are considered deprecated in 3.1.
+
     """
     def add_attribute(function):
         if not hasattr(function, "rule"):
@@ -104,6 +126,7 @@ def thread(value):
     Args:
         value: Either True or False. If True the function is called in
             a separate thread. If False from the main thread.
+
     """
     def add_attribute(function):
         function.thread = value
@@ -115,6 +138,7 @@ def name(value):
     """Decorator. Equivalent to func.name = value.
 
     This attribute is considered deprecated in 3.1.
+
     """
     raise DeprecationWarning("This attribute is considered deprecated in 3.1."
                              " Replace tuple-form .rule with a regexp.")
@@ -123,10 +147,10 @@ def name(value):
 def commands(*command_list):
     """Decorator. Sets a command list for a callable.
 
-    This decorator can be used to add multiple commands to one callable in
-    a single line. The resulting match object will have the command as the
-    first group, rest of the line, excluding leading whitespace, as the second
-    group. Parameters 1 through 4, seperated by whitespace, will be groups 3-6.
+    This decorator can be used to add multiple commands to one callable in a
+    single line. The resulting match object will have the command as the first
+    group, rest of the line, excluding leading whitespace, as the second group.
+    Parameters 1 through 4, seperated by whitespace, will be groups 3-6.
 
     Args:
         command: A string, which can be a regular expression.
@@ -143,6 +167,7 @@ def commands(*command_list):
         @commands('j', 'join')
             If the command prefix is "\.", this would trigger on lines starting
             with either ".j" or ".join".
+
     """
     def add_attribute(function):
         if not hasattr(function, "commands"):
@@ -157,8 +182,8 @@ def nickname_commands(*command_list):
 
     This decorator can be used multiple times to add multiple rules. The
     resulting match object will have the command as the first group, rest of
-    the line, excluding leading whitespace, as the second group. Parameters
-    1 through 4, seperated by whitespace, will be groups 3-6.
+    the line, excluding leading whitespace, as the second group. Parameters 1
+    through 4, seperated by whitespace, will be groups 3-6.
 
     Args:
         command: A string, which can be a regular expression.
@@ -168,14 +193,15 @@ def nickname_commands(*command_list):
         attribute. If there is no rule attribute, it is added.
 
     Example:
-        @nickname_command("hello!"):
+        @nickname_commands("hello!"):
             Would trigger on "$nickname: hello!", "$nickname,   hello!",
             "$nickname hello!", "$nickname hello! parameter1" and
             "$nickname hello! p1 p2 p3 p4 p5 p6 p7 p8 p9".
-        @nickname_command(".*"):
+        @nickname_commands(".*"):
             Would trigger on anything starting with "$nickname[:,]? ", and
             would have never have any additional parameters, as the command
             would match the rest of the line.
+
     """
     def add_attribute(function):
         if not hasattr(function, "rule"):
@@ -210,6 +236,7 @@ def priority(value):
 
     Priority allows you to control the order of callable execution, if your
     module needs it.
+
     """
     def add_attribute(function):
         function.priority = value
@@ -225,6 +252,7 @@ def event(value):
     these events, the function will execute. Note that functions with an event
     must also be given a rule to match (though it may be '.*', which will
     always match) or they will not be triggered.
+
     """
     def add_attribute(function):
         function.event = value
@@ -241,6 +269,7 @@ def rate(value):
     a function is given a rate of 20, a single user may only use that function
     once every 20 seconds. This limit applies to each user individually. Users
     on the admin list in Willie’s configuration are exempted from rate limits.
+
     """
     def add_attribute(function):
         function.rate = value
@@ -248,11 +277,33 @@ def rate(value):
     return add_attribute
 
 
-class example(object):
-    """Decorator. Add an example attribute into a function and generate a test.
+def require_privmsg(function):
     """
+    Decorator, this allows functions to specify if they should be only
+    allowed via private message.
+    """
+    @functools.wraps(function)
+    def _nop(*args, **kwargs):
+        # Assign trigger and bot for easy access later
+        bot, trigger = args[0:2]
+        if trigger.is_privmsg:
+            return function(*args, **kwargs)
+        bot.reply('This command can only be executed via PM \
+                  (Private Message)')
+        return
+    return _nop
+
+
+class example(object):
+
+    """Decorator. Add an example.
+
+    Add an example attribute into a function and generate a test.
+
+    """
+
     def __init__(self, msg, result=None, privmsg=False, admin=False,
-            owner=False, repeat=1, re=None):
+                 owner=False, repeat=1, re=False, ignore=None):
         """Accepts arguments for the decorator.
 
         Args:
@@ -266,24 +317,29 @@ class example(object):
             repeat - How many times to repeat the test. Usefull for tests that
                 return random stuff.
             re - Bool. If true, result is interpreted as a regular expression.
+            ignore - a list of outputs to ignore.
+
         """
-        # Argument re is a result in regular expression form. Giving both it
-        # and non-regular expression form makes no sense and it is not possible
-        # to know which should be used.
-        assert not (result and re)
         # Wrap result into a list for get_example_test
-        self.result = None
-        self.use_re = False
-        if result is not None:
+        if isinstance(result, list):
+            self.result = result
+        elif result is not None:
             self.result = [result]
-        elif re is not None:
-            self.result = [re]
-            self.use_re = True
+        else:
+            self.result = None
+        self.use_re = re
         self.msg = msg
         self.privmsg = privmsg
         self.admin = admin
         self.owner = owner
         self.repeat = repeat
+        
+        if isinstance(ignore, list):
+            self.ignore = ignore
+        elif ignore is not None:
+            self.ignore = [ignore]
+        else:
+            self.ignore = []
 
     def __call__(self, func):
         if not hasattr(func, "example"):
@@ -291,14 +347,18 @@ class example(object):
 
         if self.result:
             test = willie.test_tools.get_example_test(
-                    func, self.msg, self.result, self.privmsg, self.admin,
-                    self.owner, self.repeat, self.use_re)
+                func, self.msg, self.result, self.privmsg, self.admin,
+                self.owner, self.repeat, self.use_re, self.ignore
+            )
             willie.test_tools.insert_into_module(
-                    test, func.__module__, func.__name__, 'test_example')
+                test, func.__module__, func.__name__, 'test_example'
+            )
 
-        record = {"example": self.msg,
-                "result": self.result,
-                "privmsg": self.privmsg,
-                "admin": self.admin, }
+        record = {
+            "example": self.msg,
+            "result": self.result,
+            "privmsg": self.privmsg,
+            "admin": self.admin,
+        }
         func.example.append(record)
         return func

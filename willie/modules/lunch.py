@@ -7,6 +7,7 @@ Licenced under Apache Licence, Version 2.0
 from datetime import datetime
 from lxml.html import parse
 from willie.module import commands, example
+import codecs
 
 def get_lunch(*weekday):
 

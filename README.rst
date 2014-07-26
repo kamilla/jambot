@@ -1,8 +1,7 @@
-Introduction
-------------
+Introduction |build-status| |coverage-status|
+---------------------------------------------
 
-This is fork of #jamk of embolalia/willie on Eiffel Forum License, version 2.
-Willie is a simple, lightweight, open source, easy-to-use IRC Utility bot,
+JamBot is a fork of Willie, which is a simple, lightweight, open source, easy-to-use IRC Utility bot,
 written in Python. It's designed to be easy to use, run and extend.
 
 Installation
@@ -22,6 +21,11 @@ Latest source
 =============
 First, either clone the repository with ``git clone
 git://github.com/embolalia/willie.git`` or download a tarball from GitHub.
+
+Note: willie requires Python 2.7 or Python 3.3 to run. On Python 2.7,
+willie requires ``backports.ssl_match_hostname`` to be installed. Use
+``pip install backports.ssl_match_hostname`` or ``yum install python-backports.ssl_match_hostname`` to install it,
+or download and install it manually `from PyPi <https://pypi.python.org/pypi/backports.ssl_match_hostname>`.
 
 In the source directory (whether cloned or from the tarball) run
 ``setup.py install``. You can then run ``willie`` to configure and start the
@@ -53,6 +57,11 @@ information including a full listing of
 Questions?
 ----------
 
-Contact us on irc.dftba.net channel #tech
+Contact me on irc.quakenet.org nick kamilla
 
 For a list of contributions to the Jenni fork see the file ``CREDITS``.
+
+.. |build-status| image:: https://travis-ci.org/embolalia/willie.png
+   :target: https://travis-ci.org/embolalia/willie
+.. |coverage-status| image:: https://coveralls.io/repos/embolalia/willie/badge.png
+   :target: https://coveralls.io/r/embolalia/willie
